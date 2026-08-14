@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jatopa Bus - CDE</title>
+    <!-- Leaflet CSS para el mapa -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        :root {
+            --primary: #0284c7;
+            --primary-dark: #0369a1;
+            --accent: #22c55e;
+            --bg: #f8fafc;
+            --text: #1e293b;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        header {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            padding: 1.5rem;
+            text-align: center;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        }
+
+        header h1 {
+            font-size: 2.2rem;
+            margin-bottom: 0.3rem;
+        }
+
+        header p {
+            font-size: 1rem;
+            opacity: 0.9;
+        }
+
+        main {
+            flex: 1;
+            max-width: 1200px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 1.5rem;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+        }
+
+        @media (max-width: 900px) {
+            main {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        h2 {
+            font-size: 1.4rem;
+            color: var(--primary-dark);
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 0.5rem;
+        }
+
+        .location-box {
+            background: #e0f2fe;
+            border: 1px solid #bae6fd;
+            padding: 1rem;
+            border-radius: 8px;
+            font-size: 0.95rem;
+        }
+
+        .search-group {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        input, select {
+            flex: 1;
+            padding: 0.75rem;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            font-size: 1rem;
+            outline: none;
+        }
+
+        input:focus, select:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15);
+        }
+
+        button {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.25rem;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background-color: var(--primary-dark);
+        }
+
+        #map {
+            width: 100%;
+            height: 350px;
+            border-radius: 8px;
+            border: 1px solid #cbd5e1;
+        }
+
+        .bus-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .bus-item {
+            background: #f1f5f9;
+            padding: 1rem;
+            border-radius: 8px;
+            border-left: 5px solid var(--accent);
+            display: flex;
+            flex-direction: column;
+            gap: 0.3rem;
+        }
+
+        .bus-name {
+            font-weight: bold;
+            font-size: 1.05rem;
+            color: #0f172a;
+        }
+
+        .bus-route {
+            font-size: 0.9rem;
+            color: #475569;
+        }
+
+        .bus-time {
+            font-size: 0.85rem;
+            color: #64748b;
+        }
+
+        footer {
+            text-align: center;
+            padding: 1rem;
+            background: #1e293b;
+            color: #94a3b8;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Jatopa Bus 🚌</h1>
+        <p>Encontrá tu colectivo en Ciudad del Este al instante</p>
+    </header>
+
+    <main>
+        <!-- Panel Izquierdo: Ubicación e Itinerario/Buscador -->
+        <div class="card">
+            <h2>📍 Tu Ubicación y Destino</h2>
+            <div class="location-box" id="locationStatus">
+                Solicitando permiso de ubicación en CDE...
+            </div>
+
+            <div class="search-group">
+                <select id="destinationSelect">
+                    <option value="">Selecciona tu destino...</option>
+                    <option value="Km 4">Km 4 / Monday</option>
+                    <option value="Km 7">Km 7 / Don Bosco</option>
+                    <option value="Km 10">Km 10 Acaray</option>
+                    <option value="Supercarretera">Supercarretera (Area 1 / Hernandarias)</option>
+                    <option value="Presidente Franco">Pdte. Franco (Centro)</option>
+                </select>
+                <button onclick="buscarBuses()">Buscar</button>
+            </div>
+
+            <h2>📋 Colectivos Disponibles</h2>
+            <ul class="bus-list" id="busList">
+                <!-- Se llena dinámicamente con JS -->
+            </ul>
+        </div>
+
+        <!-- Panel Derecho: Mapa Interactivo -->
+        <div class="card">
+            <h2>🗺️ Mapa de CDE y Rutas</h2>
+            <div id="map"></div>
+        </div>
+    </main>
+
+    <footer>
+        <p>&copy; 2026 Jatopa Bus - Ciudad del Este, Paraguay</p>
+    </footer>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // Coordenadas base por defecto: Centro de Ciudad del Este (Plaza de la Democracia / Zona Bancaria)
+        const cdeCenter = [-25.5097, -54.6111];
+        
+        // Inicializar Mapa
+        const map = L.map('map').setView(cdeCenter, 14);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+
+        let userMarker = null;
+
+        // Base de datos simulada de itinerarios de buses en CDE
+        const itinerariosBuses = [
+            { empresa: "NASA / Rápido Paraguay", destino: "Km 4", ruta: "Terminal ➡ Área 1 ➡ Km 4 Acaray", frecuencia: "Cada 15 min" },
+            { empresa: "Acaraymi S.A.", destino: "Km 7", ruta: "Centro ➡ San Blas ➡ Km 7 Don Bosco", frecuencia: "Cada 10 min" },
+            { empresa: "Ñandutí S.R.L.", destino: "Km 10", ruta: "Plict ➡ Ruta PY02 ➡ Km 10 Acaray", frecuencia: "Cada 20 min" },
+            { empresa: "Ciudad Jardín", destino: "Supercarretera", ruta: "Centro ➡ Área 1 ➡ Supercarretera (Hernandarias)", frecuencia: "Cada 15 min" },
+            { empresa: "Transt Paraná", destino: "Presidente Franco", ruta: "Avda. Bernardino Caballero ➡ Pdte. Franco Centro", frecuencia: "Cada 12 min" }
+        ];
+
+        // Función para pedir geolocalización al cargar la página
+        function iniciarGeolocalizacion() {
+            const statusDiv = document.getElementById('locationStatus');
+            
+            if ("geolocation" in navigator) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        const lat = position.coords.latitude;
+                        const lng = position.coords.longitude;
+                        
+                        statusDiv.innerHTML = `✅ <strong>Ubicación detectada:</strong> Lat: ${lat.toFixed(4)}, Lng: ${lng.toFixed(4)} (Cerca del Centro de CDE)`;
+                        
+                        // Centrar mapa en la ubicación del usuario
+                        map.setView([lat, lng], 15);
+                        
+                        // Agregar marcador del usuario
+                        userMarker = L.marker([lat, lng]).addTo(map)
+                            .bindPopup("¡Estás aquí! Zona de abordaje")
+                            .openPopup();
+                        
+                        mostrarTodosLosBuses();
+                    },
+                    (error) => {
+                        statusDiv.innerHTML = `⚠️ No se pudo obtener la ubicación exacta (${error.message}). Usando ubicación predeterminada en el centro de CDE.`;
+                        // Usar centro por defecto
+                        userMarker = L.marker(cdeCenter).addTo(map)
+                            .bindPopup("Ubicación por defecto: Centro de CDE")
+                            .openPopup();
+                        
+                        mostrarTodosLosBuses();
+                    },
+                    { enableHighAccuracy: true, timeout: 10000 }
+                );
+            } else {
+                statusDiv.innerHTML = "❌ Tu navegador no soporta geolocalización.";
+                mostrarTodosLosBuses();
+            }
+        }
+
+        // Mostrar listado de buses
+        function mostrarTodosLosBuses(filtroDestino = "") {
+            const listContainer = document.getElementById('busList');
+            listContainer.innerHTML = "";
+
+            const resultados = filtroDestino 
+                ? itinerariosBuses.filter(bus => bus.destino.toLowerCase().includes(filtroDestino.toLowerCase()))
+                : itinerariosBuses;
+
+            if (resultados.length === 0) {
+                listContainer.innerHTML = `<li class="bus-item">No hay colectivos directos registrados para este destino.</li>`;
+                return;
+            }
+
+            resultados.forEach(bus => {
+                const li = document.createElement('li');
+                li.className = 'bus-item';
+                li.innerHTML = `
+                    <span class="bus-name">🚍 ${bus.empresa}</span>
+                    <span class="bus-route"><strong>Recorrido:</strong> ${bus.ruta}</span>
+                    <span class="bus-time">⏱️ Frecuencia: ${bus.frecuencia}</span>
+                `;
+                listContainer.appendChild(li);
+            });
+        }
+
+        // Filtrar buses al hacer clic en buscar
+        function buscarBuses() {
+            const destinoSeleccionado = document.getElementById('destinationSelect').value;
+            mostrarTodosLosBuses(destinoSeleccionado);
+        }
+
+        // Ejecutar geolocalización al iniciar
+        window.onload = iniciarGeolocalizacion;
+    </script>
+</body>
+</html>
